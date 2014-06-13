@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns3:mediator-config xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:mediator="http://xmlns.oracle.com/soa/management/config/mediator" xmlns:ns3="http://xmlns.oracle.com/sca/config/mediator">
+<ns3:version>11.0.1</ns3:version>
+<ns3:DeferredWorkerThreadCount>1</ns3:DeferredWorkerThreadCount>
+<ns3:DeferredMaxRowsRetrieved>200</ns3:DeferredMaxRowsRetrieved>
+<ns3:DeferredLockerThreadSleep>2</ns3:DeferredLockerThreadSleep>
+<ns3:ErrorLockerThreadSleep>5</ns3:ErrorLockerThreadSleep>
+<ns3:ResequencerWorkerThreadCount>1</ns3:ResequencerWorkerThreadCount>
+<ns3:ResequencerLockerThreadSleep>10</ns3:ResequencerLockerThreadSleep>
+<ns3:ResequencerMaxGroupsLocked>4</ns3:ResequencerMaxGroupsLocked>
+<ns3:auditLevel>Inherit</ns3:auditLevel>
+<ns3:metricsLevel>Disabled</ns3:metricsLevel>
+<ns3:ContainerIdInitRetries>5</ns3:ContainerIdInitRetries>
+<ns3:ContainerIdLeaseRefresh>60</ns3:ContainerIdLeaseRefresh>
+<ns3:ContainerIdLeaseTimeout>300</ns3:ContainerIdLeaseTimeout>
+<ns3:Parameters/>
+</ns3:mediator-config>

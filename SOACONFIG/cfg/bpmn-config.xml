@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns2:bpmn-config xmlns="http://xmlns.oracle.com/soa/config/bpel" xmlns:ns2="http://xmlns.oracle.com/soa/config/bpmn" version="11.1.1.3.0">
+<dspSystemThreads>2</dspSystemThreads>
+<dspInvokeThreads>20</dspInvokeThreads>
+<dspEngineThreads>30</dspEngineThreads>
+<dspMaxRequestDepth>600</dspMaxRequestDepth>
+<auditLevel>inherit</auditLevel>
+<oneWayDeliveryPolicy>async.persist</oneWayDeliveryPolicy>
+<statsLastN>-1</statsLastN>
+<auditDetailThreshold>50000</auditDetailThreshold>
+<largeDocumentThreshold>100000</largeDocumentThreshold>
+<validateXML>false</validateXML>
+<expirationMaxRetry>5</expirationMaxRetry>
+<expirationRetryDelay>120</expirationRetryDelay>
+<qualityOfService>DirectWrite</qualityOfService>
+<syncMaxWaitTime>45</syncMaxWaitTime>
+<instanceKeyBlockSize>10000</instanceKeyBlockSize>
+<maximumNumberOfInvokeMessagesInCache>100000</maximumNumberOfInvokeMessagesInCache>
+<disableSensors>false</disableSensors>
+<disableActions>BAMCommand</disableActions>
+<cubeUpdateFrequency>1800</cubeUpdateFrequency>
+<cubeInstanceExpiration>-1</cubeInstanceExpiration>
+<cubeWorkloadExpiration>48</cubeWorkloadExpiration>
+<cubeTimerMaxErrorCount>10</cubeTimerMaxErrorCount>
+<cubeTimerMaxSkipOnErrorCount>10</cubeTimerMaxSkipOnErrorCount>
+<peopleQueryTimeout>0 0/10 * * * ?</peopleQueryTimeout>
+<publishMaxTrackBackCount>0</publishMaxTrackBackCount>
+<disableProcessBroker>true</disableProcessBroker>
+<forceOptionalCreation>false</forceOptionalCreation>
+</ns2:bpmn-config>

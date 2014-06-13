@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns3:edn-config xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:edn="http://xmlns.oracle.com/soa/management/config/edn" xmlns:ns3="http://xmlns.oracle.com/soa/config/edn">
+<ns3:thread-count>1</ns3:thread-count>
+<ns3:retry-count>3</ns3:retry-count>
+<ns3:queueWaitMs>30000</ns3:queueWaitMs>
+<ns3:sharedEdn>false</ns3:sharedEdn>
+<ns3:paused>true</ns3:paused>
+</ns3:edn-config>

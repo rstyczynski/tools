@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<adapter-config xmlns="http://xmlns.oracle.com/soa/config/adapter">
+<global-inbound-jca-retry-count>-1</global-inbound-jca-retry-count>
+<default-payload-size-threshold>-1</default-payload-size-threshold>
+</adapter-config>

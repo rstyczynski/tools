@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<HWFMailerConfiguration xmlns="http://xmlns.oracle.com/ias/pcbpel/NotificationService" NotificationMode="NONE" RetryNotificationMessageThrottle="200000" UseAQ="false">
+<ASNSConfiguration>
+<Name>Default</Name>
+<EmailFromAddress>accountId@yourdomain.com</EmailFromAddress>
+<EmailReplyToAddress>no.reply@yourdomain.com</EmailReplyToAddress>
+<EmailRespondToAddress>respondToaccountId@yourdomain.com</EmailRespondToAddress>
+<IMRespondToAddress>jabber|IMRespondToAddress@imhost.com</IMRespondToAddress>
+</ASNSConfiguration>
+</HWFMailerConfiguration>

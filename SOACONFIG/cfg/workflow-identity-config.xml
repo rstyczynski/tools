@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ISConfiguration xmlns="http://www.oracle.com/pcbpel/identityservice/isconfig">
+<configurations>
+<configuration realmName="jazn.com">
+<provider providerType="JPS" name="JpsProvider" service="Identity">
+<property name="jpsContextName" value="default"/>
+<property name="IdentityServiceExtension" value=""/>
+</provider>
+</configuration>
+</configurations>
+<property name="caseSensitive" value="false"/>
+<property name="caseSensitiveGroups" value="true"/>
+<serviceExtensions>
+<serviceExtension name="HCMIdentityServiceExtension">
+<serviceProvider type="supervisoryHierarchyProvider" classname="oracle.bpel.services.identity.hierarchy.providers.hcm.HCMHierarchyProvider">
+<initializationParameter name="wsdlUrl" value="wsdl url"/>
+<initializationParameter name="policyFile" value="optional policy file url"/>
+<initializationParameter name="csf-key-name" value="optional custom csf key name"/>
+</serviceProvider>
+<serviceProvider type="jobLevelHierarchyProvider" classname="oracle.bpel.services.identity.hierarchy.providers.hcm.HCMHierarchyProvider">
+<initializationParameter name="wsdlUrl" value="wsdl url"/>
+</serviceProvider>
+<serviceProvider type="positionHierarchyProvider" classname="oracle.bpel.services.identity.hierarchy.providers.hcm.HCMPositionHierarchyProvider">
+<initializationParameter name="wsdlUrl" value="wsdl url"/>
+</serviceProvider>
+<serviceProvider type="positionLookupProvider" classname="oracle.bpel.services.identity.position.provider.hcm.PositionLookupServiceProvider">
+<initializationParameter name="wsdlUrl" value="wsdl url"/>
+</serviceProvider>
+<serviceProvider type="positionDisplayNameProvider" classname="oracle.bpel.services.identity.position.provider.hcm.PositionDisplayNameProvider">
+<initializationParameter name="wsdlUrl" value="wsdl url"/>
+</serviceProvider>
+</serviceExtension>
+</serviceExtensions>
+</ISConfiguration>

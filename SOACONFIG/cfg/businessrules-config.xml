@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<configuration xmlns="http://xmlns.oracle.com/bpel/rules">
+<ruleEngine name="Oracle" description="Oracle Business Rules 10.1.3.1.0">
+<ruleEngineClass>
+      oracle.bpel.services.rules.rpi.oracle.OracleRuleEngine
+    </ruleEngineClass>
+</ruleEngine>
+<ruleEngine name="Oracle_11.0.0.0.0" description="Oracle Business Rules 11.0.0.0.0">
+<ruleEngineClass>
+      oracle.bpel.services.rules.rpi.oracle2.OracleRuleEngine
+    </ruleEngineClass>
+</ruleEngine>
+<factContext name="Primitive" description="Primitive">
+<factContextClass>
+      oracle.bpel.services.rules.rpi.PrimitiveFactContext
+    </factContextClass>
+</factContext>
+<factContext name="OracleJaxb" description="Oracle JAXB">
+<factContextClass>
+      oracle.bpel.services.rules.rpi.JAXBFactContext
+    </factContextClass>
+</factContext>
+</configuration>

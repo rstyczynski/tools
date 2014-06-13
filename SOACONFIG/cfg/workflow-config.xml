@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<workflowConfigurations xmlns="http://xmlns.oracle.com/pcbpel/humanworkflow/configurations" xmlns:user="http://xmlns.oracle.com/bpel/workflow/userMetadata">
+<taskAutoReleaseConfigurations>
+<taskAutoRelease priority="1" default="P1D" percentageOfExpiration="30"/>
+<taskAutoRelease priority="2" default="P2D" percentageOfExpiration="40"/>
+<taskAutoRelease priority="3" default="P3D" percentageOfExpiration="50"/>
+<taskAutoRelease priority="4" default="P4D" percentageOfExpiration="60"/>
+<taskAutoRelease priority="5" default="P5D" percentageOfExpiration="70"/>
+</taskAutoReleaseConfigurations>
+<worklistApplicationURL>http://[HTTP_HOST]:[HTTP_PORT]/integration/worklistapp/TaskDetails?taskId=PC_HW_TASK_ID_TAG</worklistApplicationURL>
+<actionableEmailAccountName>Default</actionableEmailAccountName>
+<pushbackAssignee>INITIAL_ASSIGNEES</pushbackAssignee>
+<assigneeDelimiter><![CDATA[,]]></assigneeDelimiter>
+<shortHistoryActions>
+<action>ACQUIRE</action>
+<action>INFO_REQUEST</action>
+<action>INFO_SUBMIT</action>
+<action>RELEASE</action>
+</shortHistoryActions>
+<workflowServiceSessionTimeoutInMinutes>60</workflowServiceSessionTimeoutInMinutes>
+<localeList>
+<locale default="true" enabled="true">
+<language>en</language>
+</locale>
+</localeList>
+<dynamicAssignmentFunctions>
+<function name="ROUND_ROBIN" classpath="oracle.bpel.services.workflow.assignment.dynamic.patterns.RoundRobin">
+<property name="MAX_MAP_SIZE" value="10000"/>
+</function>
+<function name="LEAST_BUSY" classpath="oracle.bpel.services.workflow.assignment.dynamic.patterns.LeastBusy"/>
+<function name="MOST_PRODUCTIVE" classpath="oracle.bpel.services.workflow.assignment.dynamic.patterns.MostProductive">
+<property name="DEFAULT_TIME_PERIOD" value="7"/>
+</function>
+<function name="MANAGERS_MANAGER" classpath="oracle.bpel.services.workflow.assignment.dynamic.patterns.TaskEscalationManagersManager"/>
+</dynamicAssignmentFunctions>
+<portalRealmMapping>jazn.com</portalRealmMapping>
+<ssoOnly>false</ssoOnly>
+<recordTaskAssignmentStatistics>true</recordTaskAssignmentStatistics>
+<acknowledgeFyiUponRead>false</acknowledgeFyiUponRead>
+<hierarchyProviders/>
+<documentStoreProvider>oracle.bpm.services.document.impl.RIDCDocumentStore</documentStoreProvider>
+<maxNumberOfEmailAttachments>-1</maxNumberOfEmailAttachments>
+<maxSizeOfEmailAttachmentsInKB>-1</maxSizeOfEmailAttachmentsInKB>
+<sharePayloadAcrossAllParallelApprovers>true</sharePayloadAcrossAllParallelApprovers>
+</workflowConfigurations>

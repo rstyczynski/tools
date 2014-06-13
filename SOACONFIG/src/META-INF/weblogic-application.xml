@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<weblogic-application xmlns="http://www.bea.com/ns/weblogic/90" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <listener>
+     <listener-class>oracle.mds.lcm.weblogic.WLLifecycleListener</listener-class>
+  </listener>
+
+</weblogic-application>
+

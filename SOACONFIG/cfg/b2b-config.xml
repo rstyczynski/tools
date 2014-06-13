@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<b2b:b2b-config xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:b2b="http://xmlns.oracle.com/b2b/config">
+<b2b:property>
+<b2b:name>b2b.enableMetrics</b2b:name>
+<b2b:value>true</b2b:value>
+<b2b:comment>Enables B2B DMS metrics for Enterprise Manager.</b2b:comment>
+</b2b:property>
+<b2b:property>
+<b2b:name>b2b.payloadObfuscation</b2b:name>
+<b2b:value>false</b2b:value>
+<b2b:comment>Enables payload obfuscation</b2b:comment>
+</b2b:property>
+<b2b:property>
+<b2b:name>b2b.donot_initialize</b2b:name>
+<b2b:value>true</b2b:value>
+<b2b:comment>disabled by Oracle for GPP</b2b:comment>
+</b2b:property>
+</b2b:b2b-config>

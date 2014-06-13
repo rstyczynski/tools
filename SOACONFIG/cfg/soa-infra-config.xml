@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns3:soa-infra-config xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:soainfra="http://xmlns.oracle.com/soa/management/config/soainfra" xmlns:ns3="http://xmlns.oracle.com/soa/config/soainfra" version="11.1.1.2">
+<ns3:datasourceJndi>jdbc/SOALocalTxDataSource</ns3:datasourceJndi>
+<ns3:txDatasourceJndi>jdbc/SOADataSource</ns3:txDatasourceJndi>
+<ns3:cache-config>
+<ns3:policy name="InMemory" active="true"/>
+<ns3:policy name="Coherence" active="false"/>
+</ns3:cache-config>
+<ns3:audit-config>
+<ns3:level>Production</ns3:level>
+<ns3:compositeInstanceStateEnabled>false</ns3:compositeInstanceStateEnabled>
+<ns3:bpelRecoveryStatus>All</ns3:bpelRecoveryStatus>
+<ns3:excludeBelMaxCreationTime>5</ns3:excludeBelMaxCreationTime>
+<ns3:policy name="Immediate" active="true"/>
+<ns3:policy name="Deferred" active="false">
+<ns3:property name="maxThreads">10</ns3:property>
+<ns3:property name="flushDelay">5000</ns3:property>
+<ns3:property name="batchSize">100</ns3:property>
+</ns3:policy>
+<ns3:instanceTrackingAuditTrailThreshold>1048576</ns3:instanceTrackingAuditTrailThreshold>
+<ns3:bpelRecoveryAlertDurationInDays>7</ns3:bpelRecoveryAlertDurationInDays>
+</ns3:audit-config>
+<ns3:nonFatalConnectionMaxRetry>0</ns3:nonFatalConnectionMaxRetry>
+<ns3:globalTxMaxRetry>2</ns3:globalTxMaxRetry>
+<ns3:globalTxRetryInterval>3</ns3:globalTxRetryInterval>
+<ns3:oracle.webservices.chunkSize>0</ns3:oracle.webservices.chunkSize>
+<ns3:oracle.soa.uddi.cache.lifetime>86400</ns3:oracle.soa.uddi.cache.lifetime>
+<ns3:validateSchema>false</ns3:validateSchema>
+<ns3:ednJmsMode>false</ns3:ednJmsMode>
+<ns3:autodeployDir>${CFG_AUTODEPLOY}</ns3:autodeployDir>
+<ns3:multiTenantMode>false</ns3:multiTenantMode>
+<ns3:createWSCallTrackingMBean>false</ns3:createWSCallTrackingMBean>
+</ns3:soa-infra-config>
