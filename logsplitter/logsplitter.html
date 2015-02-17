@@ -33,8 +33,10 @@
 
  -dir           destination directory for log file. Default is current directory,
  -extension     log extension. Default is &#39;log&#39;,
- -rotateBy      rotation done by line or byte count. Default is bytes,
+ -rotateBySize  rotation done by line or byte count. Default is bytes,
  -limit         number of lines or bytes in single log file. Default values are 100 k lines and 50 mega bytes. Value provided as integer,
+ -rotateByTime  rotation done by clock of process run time. Default is clock,
+ -timeLimit     time limit in seconds. Default is 86400 (1 day),
  -startup       rotate on startup. By default doesn&#39;t rotate on startup,
  -identifier    log process identifier to be used by administrator/scripts to locate split logger running in background,
  -flush         do not buffer output. flush each line. Default is to use buffering,
@@ -74,7 +76,7 @@
 <dt id="Rotate-by-lines"><b>Rotate by lines</b></dt>
 <dd>
 
-<pre><code> seq 1 100 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -r lines -l 10
+<pre><code> seq 1 100 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10
 
  wc -l rotate-seq*
       10 rotate-seq-2015-01-21-170025-1.log
@@ -91,11 +93,50 @@
      100 total</code></pre>
 
 </dd>
+<dt id="Rotate-by-process-run-time"><b>Rotate by process run time</b></dt>
+<dd>
+
+<pre><code> # waiting for proper time x1s
+ while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
+
+ ls -lhTU *.log
+ -rw-r--r--  1 user  staff   123B Feb 17 16:34:11 2015 rotate-seq-2015-02-17-163416.log &lt;- lapsed 5 seconds 
+ -rw-r--r--  1 user  staff   147B Feb 17 16:34:16 2015 rotate-seq-2015-02-17-163421.log &lt;- lapsed 5 seconds
+ -rw-r--r--  1 user  staff    22B Feb 17 16:34:21 2015 rotate-seq.log</code></pre>
+
+</dd>
+<dt id="Rotate-by-clock-time"><b>Rotate by clock time</b></dt>
+<dd>
+
+<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
+
+ wc -l rotate-seq*
+      32 rotate-seq-2015-02-17-161715.log        &lt;- wall clock passed 5 seconds window
+      48 rotate-seq-2015-02-17-161720.log        &lt;- wall clock passed 5 seconds window
+      20 rotate-seq.log
+     100 total</code></pre>
+
+</dd>
+<dt id="Rotate-by-lines-and-process-run-time"><b>Rotate by lines and process run time</b></dt>
+<dd>
+
+<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
+
+ wc -l *.log
+      40 rotate-seq-2015-02-17-160626.log       &lt;- 40 lines limit
+       1 rotate-seq-2015-02-17-160627.log       &lt;- lapsed 5 seconds
+      40 rotate-seq-2015-02-17-160631.log       &lt;- 40 lines limit
+       8 rotate-seq-2015-02-17-160632.log       &lt;- lapsed 5 seconds
+      11 rotate-seq.log
+     100 total</code></pre>
+
+</dd>
 <dt id="Rotate-file-explicitly-written-by-a-program"><b>Rotate file explicitly written by a program</b></dt>
 <dd>
 
 <pre><code> mkfifo /tmp/logpipe
- tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq &amp;
+ tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &amp;
  seq 1 100 2&gt;&amp;1 &gt;/tmp/logpipe
 
  wc -l rotate-seq*
