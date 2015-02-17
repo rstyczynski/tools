@@ -9,37 +9,51 @@ use strict;
 my $dstDir=".";			#log destination directory
 my $logName="";			#log name w/o extension. Script automatically adds .log or provided extension
 my $logIdentifier ="";		#identifier to be able to locate background splitter process
-my $logExt="log";           #log file extension
+my $logExt="log";   	        #log file extension
 my $logNameExt;			#log name with extension. build by the script
 my $rotateBy="bytes";		#type of rotation. by bytes or lines. default it bytes
-my $sizePerLogBytes=50*1024*1024;	#default 50MB for byte based rotation
-my $sizePerLogLines=100000;	#default 100k lines for line based rotation
 my $sizePerLogParam;		#to capture cmd line parameter
 my $sizePerLog;			#maximum size of log file. meaning depends on rotate by. may be lines or bytes. used internally to initiate rotation
 my $rotateOnStart=0;		#rotate on start. option specified by cmd line. Default yes - do on start rotation.
 my $logFlush=0;			#auto flush the log - disable perl side buffering
 my $verbose=0;			#verbose mode - print verbose information about processing
-my $man=0;				#man flag
-my $help=0;				#help flag
+my $man=0;			#man flag
+my $help=0;			#help flag
 
 #rotation
+my $rotate=0;			#flag informing if rotation is needed. Rotation may be triggered by size or time
+
+#size rotation
 my $logSize;			#internal. current size of log
-my $rotatedLogName;         #rotated log name. Rotation adds current timestamp plus unique suffix if necessary
+my $rotatedLogName; 	        #rotated log name. Rotation adds current timestamp plus unique suffix if necessary
 my $rotatedLogNameExt;		#rotated log file name with .log extension
+
+#time rotation
+my $rotateByTime="";
+my $timeLimir=0;
+my $startTimeAdjustment = 0;
+my $timePerLog=0;
+my $logRotationTimeLimit=0;
+my $currentTime=0;
+my $currentTimeSlot=0;
+my $lastTimeSlot=time+1;	#value bigger than time block rotation duriong first loop
+my $lastTime=0;
 
 #read cmd line options
 my $optError=0;
-GetOptions (	'dir=s'   		=> \$dstDir,      	# string
-            	'name=s'		=> \$logName,     	# string
-			'identifier=s'	=> \$logIdentifier, 	# string
-	       	'extension=s'	=>\$logExt,     		# string
-	       	'rotateBy=s'	=> \$rotateBy, 		# string
-             	'limit=i'		=> \$sizePerLogParam,	# integer
+GetOptions (	'dir=s'   	=> \$dstDir,      	# string
+            	'name=s'	=> \$logName,     	# string
+		'identifier=s'	=> \$logIdentifier, 	# string
+	       	'extension=s'	=> \$logExt,    	# string
+	       	'rotateBySize=s'=> \$rotateBy, 		# string
+             	'limit=i'	=> \$sizePerLogParam,	# integer
+		'rotateByTime=s'=> \$rotateByTime,	# string
+		'timeLimit=i'   => \$timePerLog,	# integer
              	'flush'		=> \$logFlush,        	# flag
  	       	'start'		=> \$rotateOnStart, 	# flag
-            	'verbose'		=> \$verbose,      	# flag
-			'help|?'		=> \$help, 			# flag
-			'man'			=> \$man)			# flag
+            	'verbose'	=> \$verbose,      	# flag
+		'help|?'	=> \$help, 		# flag
+		'man'		=> \$man)		# flag
 or $optError=1;
 
 if($optError){
@@ -50,7 +64,6 @@ if($optError){
 
 pod2usage(1) if $help;
 pod2usage(-exitstatus => 0, -verbose => 2) if $man;
-
 
 if ($logName eq ""){
 	pod2usage(2);
@@ -65,19 +78,40 @@ if ($logIdentifier eq ""){
 
 if ($rotateBy eq "lines"){
 	if ($sizePerLogParam eq ""){
-		$sizePerLog=$sizePerLogLines;
+		#default 100k lines for line based rotation
+		$sizePerLog=100000;
 	} else {
 		$sizePerLog=$sizePerLogParam;
 	}
 } elsif ($rotateBy eq "bytes"){ 
         if ($sizePerLogParam eq ""){
-                $sizePerLog=$sizePerLogBytes;
+		#default 50MB for byte based rotation
+                $sizePerLog=50*1024*1024;
         } else {
                 $sizePerLog=$sizePerLogParam;
         }
-} else {
+} elsif ( $rotateBy ne "" ) {
 	die "logsplitter.pl: Error: rotateBy must be lines or bytes";
 }
+
+if ($rotateByTime eq "clock" ){
+	$startTimeAdjustment = 0;	
+} elsif ($rotateByTime eq "run" ){
+	$startTimeAdjustment = time;
+} elsif ($rotateByTime ne "" ) {
+        die "logsplitter.pl: Error: rotateByTime must be clock or run";
+}
+
+if ( "$rotateByTime . $rotateBy" eq "" ){ 
+	die "logsplitter.pl: Error: no rotation method provided. Provide by content or time. Both may be used together."
+}
+
+if ( $timePerLog > 0 ){
+	$logRotationTimeLimit = $timePerLog;
+} else {
+	#24 hours log rotation
+	$logRotationTimeLimit = 3600 * 24;	
+}	
 
 if ($verbose) {
 	print "Params: $dstDir, $logName, $rotateBy, $sizePerLog, $rotateOnStart, $verbose\n";
@@ -98,6 +132,7 @@ openLogFile();
 #read and process stdin
 if ($verbose) {print "Entering stdin read loop\n";}
 while (<>) {
+	$rotate = 0;
 
 	#print line taken from stdin
 	print outfile $_;
@@ -111,10 +146,32 @@ while (<>) {
 	
 	#decide if rotation is required	
 	if ($logSize >= $sizePerLog) {
-		$rotatedLogNameExt=generateRotatedLogName();
-		close(outfile);
-		move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
-		openLogFile();
+		if ( $rotateBy ne "" ) {
+			$rotate = 1;
+		}
+	}
+
+	#decide if time based rotation is required
+	$currentTime = time - $startTimeAdjustment;
+
+	#detect current time slot
+	$currentTimeSlot = $currentTime - $currentTime % $logRotationTimeLimit;	
+
+	if ($verbose) { print "Rotate by: $logRotationTimeLimit, current time: $currentTime, current time slot: $currentTimeSlot\n";}	
+	if ( $currentTimeSlot > $lastTimeSlot ){
+		if ( $rotateByTime ne "") {
+			$rotate = 1;
+		}
+	}
+
+	$lastTime = $currentTime;
+	$lastTimeSlot = $currentTimeSlot;
+
+	if ($rotate ){
+                $rotatedLogNameExt=generateRotatedLogName();
+                close(outfile);
+                move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
+                openLogFile();
 	}
 }
 #close log file after close of input stream
@@ -211,7 +268,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by lines>
 
- seq 1 100 2>&1 | perl logsplitter.pl -n rotate-seq -r lines -l 10
+ seq 1 100 2>&1 | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10
 
  wc -l rotate-seq*
       10 rotate-seq-2015-01-21-170025-1.log
@@ -227,10 +284,43 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
        0 rotate-seq.log
      100 total
 
+=item B<Rotate by process run time>
+
+ # waiting for proper time x1s
+ while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
+
+ ls -lhTU *.log
+ -rw-r--r--  1 user  staff   123B Feb 17 16:34:11 2015 rotate-seq-2015-02-17-163416.log	<- lapsed 5 seconds 
+ -rw-r--r--  1 user  staff   147B Feb 17 16:34:16 2015 rotate-seq-2015-02-17-163421.log <- lapsed 5 seconds
+ -rw-r--r--  1 user  staff    22B Feb 17 16:34:21 2015 rotate-seq.log
+
+=item B<Rotate by clock time>
+
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
+
+ wc -l rotate-seq*
+      32 rotate-seq-2015-02-17-161715.log	 <- wall clock passed 5 seconds window
+      48 rotate-seq-2015-02-17-161720.log	 <- wall clock passed 5 seconds window
+      20 rotate-seq.log
+     100 total
+
+=item B<Rotate by lines and process run time>
+
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
+
+ wc -l *.log
+      40 rotate-seq-2015-02-17-160626.log	<- 40 lines limit
+       1 rotate-seq-2015-02-17-160627.log	<- lapsed 5 seconds
+      40 rotate-seq-2015-02-17-160631.log	<- 40 lines limit
+       8 rotate-seq-2015-02-17-160632.log	<- lapsed 5 seconds
+      11 rotate-seq.log
+     100 total
+
 =item B<Rotate file explicitly written by a program>
 
  mkfifo /tmp/logpipe
- tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq &
+ tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &
  seq 1 100 2>&1 >/tmp/logpipe
 
  wc -l rotate-seq*
