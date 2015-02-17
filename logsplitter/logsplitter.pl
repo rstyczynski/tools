@@ -230,8 +230,10 @@ __END__
 
  -dir		destination directory for log file. Default is current directory,
  -extension 	log extension. Default is 'log',
- -rotateBy 	rotation done by line or byte count. Default is bytes,
+ -rotateBySize 	rotation done by line or byte count. Default is bytes,
  -limit 	number of lines or bytes in single log file. Default values are 100 k lines and 50 mega bytes. Value provided as integer,
+ -rotateByTime	rotation done by clock of process run time. Default is clock,
+ -timeLimit	time limit in seconds. Default is 86400 (1 day),
  -startup 	rotate on startup. By default doesn't rotate on startup,
  -identifier 	log process identifier to be used by administrator/scripts to locate split logger running in background,
  -flush 	do not buffer output. flush each line. Default is to use buffering,
