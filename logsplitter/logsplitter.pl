@@ -358,7 +358,7 @@ Ryszard Styczynski
 <ryszard.styczynski@oracle.com>
 <http://snailsinnoblesoftware.blogspot.com>
 
-January 2015, version 0.1
+February 2015, version 0.2
 
 =cut
 
