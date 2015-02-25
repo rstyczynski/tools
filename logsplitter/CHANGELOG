@@ -4,3 +4,6 @@ initial revision, rotation by size: lines/bytes
 0.2 	February 2015
 time rotation by clock or process time
 
+0.2.1	February 2015
+added HUP signal handler to intiate rotation by external tool
+

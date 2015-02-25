@@ -4,3 +4,9 @@
 *.log
 
 *.tmp
+
+logsplitter/perklfork.pl
+
+logsplitter/perlcron.pl
+
+logsplitter/rotateHUP.pl

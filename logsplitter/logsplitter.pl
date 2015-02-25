@@ -39,6 +39,9 @@ my $currentTimeSlot=0;
 my $lastTimeSlot=time+1;	#value bigger than time block rotation duriong first loop
 my $lastTime=0;
 
+#other
+my $exit = 0;			#flag to exit main loop, set by INT signal handler
+
 #read cmd line options
 my $optError=0;
 GetOptions (	'dir=s'   	=> \$dstDir,      	# string
@@ -117,67 +120,106 @@ if ($verbose) {
 	print "Params: $dstDir, $logName, $rotateBy, $sizePerLog, $rotateOnStart, $verbose\n";
 }
 
+#register signal handlers
+$SIG{HUP}  = \&signal_handler_ROTATE;
+$SIG{INT}  = \&signal_handler_EXIT;
+
 #rotate on start
 if ($rotateOnStart){
-	$rotatedLogNameExt=generateRotatedLogName();
-	if ($verbose) {print "Rotated log name:$rotatedLogNameExt\n";}
-	if ( -e "$dstDir/$logNameExt" ) {
-		move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
-	}
+	moveLogFile();
 }
 
-#open log file handler
-openLogFile();
+#$exit may be set only by INT signal
+my $exit = 0;
 
-#read and process stdin
-if ($verbose) {print "Entering stdin read loop\n";}
-while (<>) {
-	$rotate = 0;
+while ( ! $exit ) {
 
-	#print line taken from stdin
-	print outfile $_;
+	#open log file handler
+	openLogFile();
+	#read and process stdin
+	if ($verbose) {print "Entering stdin read loop\n";}
+	while (<>) {
+		$rotate = 0;
 
-	#increment log size
-	if ($rotateBy eq "lines"){
-		$logSize++;
-	} elsif ($rotateBy eq "bytes"){
-		$logSize += length $_;
+		#print line taken from stdin
+		print outfile $_;
+
+		#increment log size
+		if ($rotateBy eq "lines"){
+			$logSize++;
+		} elsif ($rotateBy eq "bytes"){
+			$logSize += length $_;
+		}
+		
+		#decide if rotation is required	
+		if ($logSize >= $sizePerLog) {
+			if ( $rotateBy ne "" ) {
+				$rotate = 1;
+			}
+		}
+
+		#decide if time based rotation is required
+		$currentTime = time - $startTimeAdjustment;
+
+		#detect current time slot
+		$currentTimeSlot = $currentTime - $currentTime % $logRotationTimeLimit;	
+
+		if ($verbose) { print "Rotate by: $logRotationTimeLimit, current time: $currentTime, current time slot: $currentTimeSlot\n";}	
+		if ( $currentTimeSlot > $lastTimeSlot ){
+			if ( $rotateByTime ne "") {
+				$rotate = 1;
+			}
+		}
+
+		$lastTime = $currentTime;
+		$lastTimeSlot = $currentTimeSlot;
+
+		if ($rotate ){
+			rotateLogFile();
+		}
 	}
+
+	#check if exit was due to signal
+	my $errno = $! + 0;
+	if ( $errno == 0 ) {
+		$exit = 1;
+	} 
 	
-	#decide if rotation is required	
-	if ($logSize >= $sizePerLog) {
-		if ( $rotateBy ne "" ) {
-			$rotate = 1;
-		}
-	}
+	#close log file after close of input stream
+	close(outfile);
 
-	#decide if time based rotation is required
-	$currentTime = time - $startTimeAdjustment;
-
-	#detect current time slot
-	$currentTimeSlot = $currentTime - $currentTime % $logRotationTimeLimit;	
-
-	if ($verbose) { print "Rotate by: $logRotationTimeLimit, current time: $currentTime, current time slot: $currentTimeSlot\n";}	
-	if ( $currentTimeSlot > $lastTimeSlot ){
-		if ( $rotateByTime ne "") {
-			$rotate = 1;
-		}
-	}
-
-	$lastTime = $currentTime;
-	$lastTimeSlot = $currentTimeSlot;
-
-	if ($rotate ){
-                $rotatedLogNameExt=generateRotatedLogName();
-                close(outfile);
-                move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
-                openLogFile();
-	}
+	#exiting due to $exit=1
 }
-#close log file after close of input stream
-close(outfile);
+
+
+###
+### END of main logic here.
+###
 
 ##### functions
+sub signal_handler_ROTATE {
+        if ($verbose) {print "Caught a HUP signal. Reopening stdin and out file\n";}
+  	rotateLogFile();
+}
+
+sub signal_handler_EXIT {
+	$exit = 1;
+}
+
+sub rotateLogFile {
+	close(outfile);
+	moveLogFile();
+	openLogFile();
+}
+
+sub moveLogFile {
+        $rotatedLogNameExt=generateRotatedLogName();
+        if ($verbose) {print "Rotated log name:$rotatedLogNameExt\n";}
+        if ( -e "$dstDir/$logNameExt" ) {
+                move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
+        }
+}
+
 sub openLogFile {
 	$logSize=0;
 	open(outfile, ">>", "$dstDir/$logNameExt") || die "logsplitter.pl: Cannot open output file: $!";
@@ -346,6 +388,41 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
  Note that above example is from OSX. Parameters of ps command and its output varies on different operating systems.
 
+=item B<Log rotation triggered by external process>
+
+ # waiting for proper time x1s
+ while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
+ 
+ # start background 5s rotation trigger 
+ bash -c '
+ cnt=0
+ while [ $cnt -lt 5 ]; do
+ sleep 5
+ logsplitterPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d" ")
+ echo $logsplitterPID
+ if [ "$logsplitterPID" != "" ]; then
+    kill -HUP $logsplitterPID
+    if [ $? -eq 1 ]; then
+      cnt=5
+    fi
+ fi
+ cnt=$(( $cnt + 1 ))
+ done 
+ 
+ exit
+ ' &
+
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
+
+
+ wc -l rotate-seq*
+      25 rotate-seq-2015-02-25-152946.log
+      25 rotate-seq-2015-02-25-152951.log
+      24 rotate-seq-2015-02-25-152956.log
+      25 rotate-seq-2015-02-25-153001.log
+       1 rotate-seq.log
+     100 total
+
 =back
 
 =head1 PERFORMANCE
@@ -358,7 +435,7 @@ Ryszard Styczynski
 <ryszard.styczynski@oracle.com>
 <http://snailsinnoblesoftware.blogspot.com>
 
-February 2015, version 0.2
+February 2015, version 0.2.1
 
 =cut
 

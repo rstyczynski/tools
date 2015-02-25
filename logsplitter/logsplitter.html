@@ -163,6 +163,43 @@
  Note that above example is from OSX. Parameters of ps command and its output varies on different operating systems.</code></pre>
 
 </dd>
+<dt id="Log-rotation-triggered-by-external-process"><b>Log rotation triggered by external process</b></dt>
+<dd>
+
+<pre><code> # waiting for proper time x1s
+ while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
+ 
+ # start background 5s rotation trigger 
+ bash -c &#39;
+ cnt=0
+ while [ $cnt -lt 5 ]; do
+ sleep 5
+ logsplitterPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d&quot; &quot;)
+ echo $logsplitterPID
+ if [ &quot;$logsplitterPID&quot; != &quot;&quot; ]; then
+    kill -HUP $logsplitterPID
+    if [ $? -eq 1 ]; then
+      cnt=5
+    fi
+ fi
+ cnt=$(( $cnt + 1 ))
+ done 
+ 
+ exit
+ &#39; &amp;
+
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
+
+
+ wc -l rotate-seq*
+      25 rotate-seq-2015-02-25-152946.log
+      25 rotate-seq-2015-02-25-152951.log
+      24 rotate-seq-2015-02-25-152956.log
+      25 rotate-seq-2015-02-25-153001.log
+       1 rotate-seq.log
+     100 total</code></pre>
+
+</dd>
 </dl>
 
 <h1 id="PERFORMANCE">PERFORMANCE</h1>
@@ -173,7 +210,7 @@
 
 <p>Ryszard Styczynski &lt;ryszard.styczynski@oracle.com&gt; &lt;http://snailsinnoblesoftware.blogspot.com&gt;</p>
 
-<p>February 2015, version 0.2</p>
+<p>February 2015, version 0.2.1</p>
 
 
 </body>

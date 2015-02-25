@@ -1,4 +1,3 @@
-
 1. Manual
 
 perl logsplitter.pl -man
