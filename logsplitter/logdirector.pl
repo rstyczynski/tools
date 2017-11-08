@@ -6,19 +6,30 @@ use File::Copy qw(move);
 use FileHandle;
 use strict;
 
-my $dstDir=".";			#log destination directory
-my $logName="";			#log name w/o extension. Script automatically adds .log or provided extension
-my $logIdentifier ="";		#identifier to be able to locate background splitter process
-my $logExt="log";   	        #log file extension
-my $logNameExt;			#log name with extension. build by the script
-my $rotateBy="bytes";		#type of rotation. by bytes or lines. default it bytes
-my $sizePerLogParam;		#to capture cmd line parameter
-my $sizePerLog;			#maximum size of log file. meaning depends on rotate by. may be lines or bytes. used internally to initiate rotation
-my $rotateOnStart=0;		#rotate on start. option specified by cmd line. Default yes - do on start rotation.
-my $logFlush=0;			#auto flush the log - disable perl side buffering
-my $verbose=0;			#verbose mode - print verbose information about processing
-my $man=0;			#man flag
-my $help=0;			#help flag
+my $dstDir=".";			 #log destination directory
+my $dstEffectiveDir="";  #date asubdirectory
+my $dstDateSubDirFlag=0; #maintain date sub directory?  
+my $dstDateSubDir="";    #date subdirectory name
+my $logName="";			 #log name w/o extension. Script automatically adds .log or provided extension
+my $logIdentifier ="";	 #identifier to be able to locate background splitter process
+my $logExt="log";   	 #log file extension
+my $useTimestampedLog=0; #always write to log file with timestamp
+my $datePrefix=0;        #put timestamp at begging of the filename or at the end
+my $logDateSeparator="_";#separator between file name and timestamp
+my $logNameExt;			 #log name with extension. build by the script
+
+my $fileHeader;          #header to be added at top of each file
+my $autoDetectHeader=0;      #take file header from first line after start in the log stream
+my $headerAlreadyDetected=0; #take header just once
+
+my $rotateBy="bytes";	 #type of rotation. by bytes or lines. default it bytes
+my $sizePerLogParam;	 #to capture cmd line parameter
+my $sizePerLog;			 #maximum size of log file. meaning depends on rotate by. may be lines or bytes. used internally to initiate rotation
+my $rotateOnStart=0;	 #rotate on start. option specified by cmd line. Default yes - do on start rotation.
+my $logFlush=0;			 #auto flush the log - disable perl side buffering
+my $verbose=0;			 #verbose mode - print verbose information about processing
+my $man=0;		  	     #man flag
+my $help=0;			     #help flag
 
 #rotation
 my $rotate=0;			#flag informing if rotation is needed. Rotation may be triggered by size or time
@@ -44,23 +55,29 @@ my $exit = 0;			#flag to exit main loop, set by INT signal handler
 
 #read cmd line options
 my $optError=0;
-GetOptions (	'dir=s'   	=> \$dstDir,      	# string
-            	'name=s'	=> \$logName,     	# string
-		'identifier=s'	=> \$logIdentifier, 	# string
+GetOptions ('dir=s'   	    => \$dstDir,      	# string
+            'addDateSubDir' => \$dstDateSubDirFlag, # flag
+            'name=s'	    => \$logName,     	# string
+            'alwaysRotate'  => \$useTimestampedLog, #flag
+            'prefixDate',   	  => \$datePrefix,      	# flag
+            'separatorDate=s', => \$logDateSeparator,      	# string
+		    'identifier=s'	=> \$logIdentifier, # string
 	       	'extension=s'	=> \$logExt,    	# string
+            'header=s'      => \$fileHeader,     #string
+            'detectHeader'  => \$autoDetectHeader, #flag
 	       	'rotateBySize=s'=> \$rotateBy, 		# string
-             	'limit=i'	=> \$sizePerLogParam,	# integer
-		'rotateByTime=s'=> \$rotateByTime,	# string
-		'timeLimit=i'   => \$timePerLog,	# integer
-             	'flush'		=> \$logFlush,        	# flag
- 	       	'start'		=> \$rotateOnStart, 	# flag
-            	'verbose'	=> \$verbose,      	# flag
-		'help|?'	=> \$help, 		# flag
-		'man'		=> \$man)		# flag
+        	'limit=i' 	    => \$sizePerLogParam, # integer
+		    'rotateByTime=s'=> \$rotateByTime,	# string
+		    'timeLimit=i'   => \$timePerLog,	# integer
+            'flush'		    => \$logFlush,      # flag
+ 	       	'start'		    => \$rotateOnStart, # flag
+            'verbose'	    => \$verbose,      	# flag
+		    'help|?'	    => \$help, 		    # flag
+		    'man'		    => \$man)		    # flag
 or $optError=1;
 
 if($optError){
-	print ("logsplitter.pl: Error in command line arguments\n");
+	print ("logdirector.pl: Error in command line arguments\n");
 	pod2usage(2);
 	exit;
 }
@@ -94,7 +111,7 @@ if ($rotateBy eq "lines"){
                 $sizePerLog=$sizePerLogParam;
         }
 } elsif ( $rotateBy ne "" ) {
-	die "logsplitter.pl: Error: rotateBy must be lines or bytes";
+	die "logdirector.pl: Error: rotateBy must be lines or bytes";
 }
 
 if ($rotateByTime eq "clock" ){
@@ -102,11 +119,11 @@ if ($rotateByTime eq "clock" ){
 } elsif ($rotateByTime eq "run" ){
 	$startTimeAdjustment = time;
 } elsif ($rotateByTime ne "" ) {
-        die "logsplitter.pl: Error: rotateByTime must be clock or run";
+        die "logdirector.pl: Error: rotateByTime must be clock or run";
 }
 
 if ( "$rotateByTime . $rotateBy" eq "" ){ 
-	die "logsplitter.pl: Error: no rotation method provided. Provide by content or time. Both may be used together."
+	die "logdirector.pl: Error: no rotation method provided. Provide by content or time. Both may be used together."
 }
 
 if ( $timePerLog > 0 ){
@@ -124,6 +141,7 @@ if ($verbose) {
 $SIG{HUP}  = \&signal_handler_ROTATE;
 $SIG{INT}  = \&signal_handler_EXIT;
 
+#REMOVE
 #rotate on start
 if ($rotateOnStart){
 	moveLogFile();
@@ -136,6 +154,7 @@ while ( ! $exit ) {
 
 	#open log file handler
 	openLogFile();
+    
 	#read and process stdin
 	if ($verbose) {print "Entering stdin read loop\n";}
 	while (<>) {
@@ -143,6 +162,11 @@ while ( ! $exit ) {
 
 		#print line taken from stdin
 		print outfile $_;
+
+        if ( $autoDetectHeader && not($headerAlreadyDetected)) {
+            $fileHeader = $_;
+            $headerAlreadyDetected=1;
+        }
 
 		#increment log size
 		if ($rotateBy eq "lines"){
@@ -208,22 +232,71 @@ sub signal_handler_EXIT {
 
 sub rotateLogFile {
 	close(outfile);
-	moveLogFile();
-	openLogFile();
+    
+	if ( $useTimestampedLog ) {
+        openLogFile();
+	} else {
+        moveLogFile();
+        openLogFile();
+    }
+
 }
 
 sub moveLogFile {
         $rotatedLogNameExt=generateRotatedLogName();
         if ($verbose) {print "Rotated log name:$rotatedLogNameExt\n";}
-        if ( -e "$dstDir/$logNameExt" ) {
-                move("$dstDir/$logNameExt", "$dstDir/$rotatedLogNameExt");
+        
+        if ($dstDateSubDirFlag) {
+            my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+            $year += 1900;
+            $mon++;
+            if($mon < 10) {$mon = "0$mon"};
+	        if($mday < 10) {$mday = "0$mday"};
+            $dstDateSubDir = "$year-$mon-$mday";
+            $dstEffectiveDir = "$dstDir/$dstDateSubDir";
+
+            unless(-e $dstEffectiveDir or mkdir $dstEffectiveDir) { die "logdirector.pl: Unable to create $dstEffectiveDir\n"; }
+        } else {
+            $dstEffectiveDir = "$dstDir";
+        }
+        
+        if ( -e "$dstEffectiveDir/$logNameExt" ) {
+                move("$dstEffectiveDir/$logNameExt", "$dstEffectiveDir/$rotatedLogNameExt");
         }
 }
 
 sub openLogFile {
 	$logSize=0;
-	open(outfile, ">>", "$dstDir/$logNameExt") || die "logsplitter.pl: Cannot open output file: $!";
-	if ($verbose) {print "Opened log file $dstDir/$logNameExt\n";}
+    
+    if ($dstDateSubDirFlag) {
+		my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+		$year += 1900;
+		$mon++;
+        if($mon < 10) {$mon = "0$mon"};
+	    if($mday < 10) {$mday = "0$mday"};
+		$dstDateSubDir = "$year-$mon-$mday";
+		$dstEffectiveDir = "$dstDir/$dstDateSubDir";
+        
+        unless(-e $dstEffectiveDir or mkdir $dstEffectiveDir) { die "logdirector.pl: Unable to create $dstEffectiveDir\n"; }
+	} else {
+		$dstEffectiveDir = "$dstDir";
+	}
+    
+    if ( $useTimestampedLog ) {
+        $logNameExt=generateRotatedLogName();
+    }
+	open(outfile, ">>", "$dstEffectiveDir/$logNameExt") || die "logdirector.pl: Cannot open output file: $!";
+	if ($verbose) {print "Opened log file $dstEffectiveDir/$logNameExt\n";}
+    
+    if ( $fileHeader ) {
+        if ( $autoDetectHeader ) {
+            #autodetected header is already with new line character
+            print outfile $fileHeader;
+        } else {
+            print outfile $fileHeader . "\n";
+        }
+    }
+    
 	#make out_file hot - flush buffers immediately
 	if ($logFlush) {
 		outfile->autoflush(1);
@@ -244,11 +317,32 @@ sub generateRotatedLogName {
 
 	if ($verbose) { print "Time:$sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst\n";}
 	if ($verbose) { print "Log name: $logName\n";}
-	$rotatedLogName = "$logName-$year-$mon-$mday-$hour$min$sec";
+	
+    if ($datePrefix) {
+        $rotatedLogName = "$year-$mon-$mday-$hour$min$sec"  . $logDateSeparator . "$logName";
+    } else {
+        $rotatedLogName = "$logName" . $logDateSeparator . "$year-$mon-$mday-$hour$min$sec";
+    }
+    
 	$rotatedLogNameExt = "$rotatedLogName.$logExt";
 	if ($verbose) { print "Rotated log name: $rotatedLogName, $rotatedLogNameExt\n";}
-	my $rotatedUniqueSuffix=0;
-	while (-e "$dstDir/$rotatedLogNameExt"){
+    
+    if ($dstDateSubDirFlag) {
+		my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+		$year += 1900;
+		$mon++;
+        if($mon < 10) {$mon = "0$mon"};
+	    if($mday < 10) {$mday = "0$mday"};
+		$dstDateSubDir = "$year-$mon-$mday";
+		$dstEffectiveDir = "$dstDir/$dstDateSubDir";
+        
+        unless(-e $dstEffectiveDir or mkdir $dstEffectiveDir) { die "logdirector.pl: Unable to create $dstEffectiveDir\n"; }
+	} else {
+		$dstEffectiveDir = "$dstDir";
+	}
+    
+    my $rotatedUniqueSuffix=0;
+	while (-e "$dstEffectiveDir/$rotatedLogNameExt"){
         	if ($verbose) { print "Rotated log name exists. Generating unique suffix.\n";};
        	 	$rotatedUniqueSuffix++;
         	$rotatedLogNameExt = "$rotatedLogName-$rotatedUniqueSuffix.$logExt";
@@ -258,29 +352,37 @@ sub generateRotatedLogName {
 }
 
 __END__
-
 =head1 NAME
 
- logsplitter.pl - stdout rotation script. 
-
+logdirector.pl - stdout log director and rotation script. 
+ 
 =head1 SYNOPSIS
 
- some_program 2>&1 | perl logsplitter.pl -name logName [options]
-
+ some_program | perl logdirector.pl -name logName [options]
  where:
  -name 		log name, but without extension (provided value or default 'log' will be added). This parameter is mandatory,
-
- -dir		destination directory for log file. Default is current directory,
  -extension 	log extension. Default is 'log',
+ 
+ -dir		destination directory for log file. Default is current directory,
+ -addDateSubDir create subdirectory with date to keep logs,
+
+ -alwaysRotate  always write to log file with timestamp,
+ -prefixDate    put timestamp at front of the file name, default is at the end,
+ -separatorDate character to separate timestamp and file name. default is underscore,
+ 
+ -header        add this header on top of each file. Useful for CSV files with hreader,
+ -detectHeader  auto detect header from first line of log stream after start. Useful for CSV files with hreader,
+ 
  -rotateBySize 	rotation done by line or byte count. Default is bytes,
  -limit 	number of lines or bytes in single log file. Default values are 100 k lines and 50 mega bytes. Value provided as integer,
  -rotateByTime	rotation done by clock of process run time. Default is clock,
  -timeLimit	time limit in seconds. Default is 86400 (1 day),
  -startup 	rotate on startup. By default doesn't rotate on startup,
- -identifier 	log process identifier to be used by administrator/scripts to locate split logger running in background,
+ 
+ -identifier 	log process identifier to be used by administrator/scripts to locate log director running in background,
  -flush 	do not buffer output. flush each line. Default is to use buffering,
+ 
  -verbose	debug mode,
-
  -help 		this help,
  -man		shows longer manual.
 
@@ -288,7 +390,7 @@ __END__
 
 =head1 DESCRIPTION
 
-Forwards stdin data stream to a log file and maintain rotation rules. Rotated files get date/time signature at the end of the file name, but before extension. In case of name conflict (too fast log generation), date/time is extended by unique sequence. Uses internal rotation rules and writes data synchronously just after data reception. Does not require external tool as logrotate, and does not react on HUP signal.
+Forwards stdin data stream to a log file and maintain log naming and rotation rules. Rotated files get date/time signature at the end or at begining of the file name, and may be written to daily directory. In case of name conflict (too fast log generation), date/time is extended by unique sequence. Supports flexible rotation rules. Rewrties file headers on request, what is useful for CVS files rotation.  
 
 =head1 EXAMPLES
 
@@ -296,8 +398,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by bytes>
 
- seq 1 100 2>&1 | perl logsplitter.pl -n rotate-seq -l 30
-
+ seq 1 100  | perl logdirector.pl -n rotate-seq -l 30
  ls -lh rotate-s*
  -rw-r--r--  1 user  staff    30B Jan 21 16:52 rotate-seq-2015-01-21-165222-1.log
  -rw-r--r--  1 user  staff    30B Jan 21 16:52 rotate-seq-2015-01-21-165222-2.log
@@ -312,8 +413,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by lines>
 
- seq 1 100 2>&1 | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10
-
+seq 1 100  | perl logdirector.pl -n rotate-seq -rotateBySize lines -l 10
  wc -l rotate-seq*
       10 rotate-seq-2015-01-21-170025-1.log
       10 rotate-seq-2015-01-21-170025-2.log
@@ -330,10 +430,9 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by process run time>
 
- # waiting for proper time x1s
+ # waiting for proper time x 1s
  while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
  ls -lhTU *.log
  -rw-r--r--  1 user  staff   123B Feb 17 16:34:11 2015 rotate-seq-2015-02-17-163416.log	<- lapsed 5 seconds 
  -rw-r--r--  1 user  staff   147B Feb 17 16:34:16 2015 rotate-seq-2015-02-17-163421.log <- lapsed 5 seconds
@@ -341,8 +440,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by clock time>
 
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
  wc -l rotate-seq*
       32 rotate-seq-2015-02-17-161715.log	 <- wall clock passed 5 seconds window
       48 rotate-seq-2015-02-17-161720.log	 <- wall clock passed 5 seconds window
@@ -351,8 +449,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =item B<Rotate by lines and process run time>
 
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
  wc -l *.log
       40 rotate-seq-2015-02-17-160626.log	<- 40 lines limit
        1 rotate-seq-2015-02-17-160627.log	<- lapsed 5 seconds
@@ -360,13 +457,41 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
        8 rotate-seq-2015-02-17-160632.log	<- lapsed 5 seconds
       11 rotate-seq.log
      100 total
+     
+=item B<Rotate by clock time, save files to directory keeping timestamp prefix, add header to each file.>
+
+  for cnt in $(seq 1 100); do echo $cnt; sleep 1; done \
+  | perl logdirector.pl -n rotate-seq -rotateByTime clock -timeLimit 15 -addDateSubDir -alwaysRotate -prefixDate -header Counter
+  
+  ls -l
+  total 96
+  drwxr-xr-x  9 rstyczynski  staff    306 Nov  8 11:42 2017-11-08   <- created directory with logs
+
+  ls -l $(date +%Y-%m-%d)/
+  total 56
+  -rw-r--r--  1 rstyczynski  staff  35 Nov  8 11:41 2017-11-08-114049_rotate-seq.log  <- log files are perfixed with timestamp
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114100_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114115_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114130_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:42 2017-11-08-114145_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:42 2017-11-08-114200_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  48 Nov  8 11:42 2017-11-08-114215_rotate-seq.log
+  
+  head -3 $(date +%Y-%m-%d)/$(ls $(date +%Y-%m-%d) | head -1)
+  Counter   <- added header
+  1
+  2
+  
+  head -3 $(date +%Y-%m-%d)/$(ls $(date +%Y-%m-%d) | head -2 | tail -1)
+  Counter   <- added header
+  13
+  14
 
 =item B<Rotate file explicitly written by a program>
-
+  
  mkfifo /tmp/logpipe
- tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &
- seq 1 100 2>&1 >/tmp/logpipe
-
+ tail -c +1 -f /tmp/logpipe | perl logdirector.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &
+ seq 1 100  >/tmp/logpipe
  wc -l rotate-seq*
       10 rotate-seq-2015-01-22-110927-1.log
       10 rotate-seq-2015-01-22-110927-2.log
@@ -381,11 +506,10 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
        0 rotate-seq.log
      100 total
 
-=item B<Identify PID of background logsplitter process>
+=item B<Identify PID of background logdirector process>
 
  ps -f | grep "test001-rotate-seq" | grep -v grep
- 501  8553   534   0 11:32AM ttys002    0:00.07 perl logsplitter.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq
-
+ 501  8553   534   0 11:32AM ttys002    0:00.07 perl logdirector.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq
  Note that above example is from OSX. Parameters of ps command and its output varies on different operating systems.
 
 =item B<Log rotation triggered by external process>
@@ -398,10 +522,10 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
  cnt=0
  while [ $cnt -lt 5 ]; do
  sleep 5
- logsplitterPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d" ")
- echo $logsplitterPID
- if [ "$logsplitterPID" != "" ]; then
-    kill -HUP $logsplitterPID
+ logdirectorPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d" ")
+ echo $logdirectorPID
+ if [ "$logdirectorPID" != "" ]; then
+    kill -HUP $logdirectorPID
     if [ $? -eq 1 ]; then
       cnt=5
     fi
@@ -411,10 +535,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
  
  exit
  ' &
-
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done 2>&1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
-
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
  wc -l rotate-seq*
       25 rotate-seq-2015-02-25-152946.log
       25 rotate-seq-2015-02-25-152951.log
@@ -427,7 +548,7 @@ Forwards stdin data stream to a log file and maintain rotation rules. Rotated fi
 
 =head1 PERFORMANCE
 	
-log splitter was verified to work on three levels of speed: (1) unbuffered write, read from stdin: 100MB/s, (2) buffered write (-f option), read from stdin: 30MB/s, (3) unbuffered write, read from fifo pipe: 10MB/s. Each level of measured speed seems enough for logging purposes.
+log director was verified to work on three levels of speed: (1) unbuffered write, read from stdin: 100MB/s, (2) buffered write (-f option), read from stdin: 30MB/s, (3) unbuffered write, read from fifo pipe: 10MB/s. Each level of measured speed seems enough for logging purposes.
 
 =head1 AUTHOR
 
@@ -435,7 +556,7 @@ Ryszard Styczynski
 <ryszard.styczynski@oracle.com>
 <http://snailsinnoblesoftware.blogspot.com>
 
-February 2015, version 0.2.1
+February 2015 - November 2017, version 0.3
 
 =cut
 
