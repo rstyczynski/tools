@@ -7,3 +7,7 @@ time rotation by clock or process time
 0.2.1	February 2015
 added HUP signal handler to intiate rotation by external tool
 
+0.3	November 2017
+moved to log director. Now it's possible to write directly to timestamped file located in date directory, prefixed or suffixed with timestamp. It's possible to add header line to each file. The header may be autodetected in the first line of stdout stream. It's useful for CVS files. 
+
+this change moved log splitter from simple log rotation use cases to more sophisticated use cases fitting data collection. all previous options are still available

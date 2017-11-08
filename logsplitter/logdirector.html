@@ -4,7 +4,7 @@
 <head>
 <title></title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:_mdnsresponder@jackson.apple.com" />
+<link rev="made" href="mailto:_netbios@osx320.apple.com" />
 </head>
 
 <body style="background-color: white">
@@ -22,26 +22,35 @@
 
 <h1 id="NAME">NAME</h1>
 
-<pre><code> logsplitter.pl - stdout rotation script. </code></pre>
+<p>logdirector.pl - stdout log director and rotation script.</p>
 
 <h1 id="SYNOPSIS">SYNOPSIS</h1>
 
-<pre><code> some_program 2&gt;&amp;1 | perl logsplitter.pl -name logName [options]
-
+<pre><code> some_program | perl logdirector.pl -name logName [options]
  where:
  -name          log name, but without extension (provided value or default &#39;log&#39; will be added). This parameter is mandatory,
-
- -dir           destination directory for log file. Default is current directory,
  -extension     log extension. Default is &#39;log&#39;,
+ 
+ -dir           destination directory for log file. Default is current directory,
+ -addDateSubDir create subdirectory with date to keep logs,
+
+ -alwaysRotate  always write to log file with timestamp,
+ -prefixDate    put timestamp at front of the file name, default is at the end,
+ -separatorDate character to separate timestamp and file name. default is underscore,
+ 
+ -header        add this header on top of each file. Useful for CSV files with hreader,
+ -detectHeader  auto detect header from first line of log stream after start. Useful for CSV files with hreader,
+ 
  -rotateBySize  rotation done by line or byte count. Default is bytes,
  -limit         number of lines or bytes in single log file. Default values are 100 k lines and 50 mega bytes. Value provided as integer,
  -rotateByTime  rotation done by clock of process run time. Default is clock,
  -timeLimit     time limit in seconds. Default is 86400 (1 day),
  -startup       rotate on startup. By default doesn&#39;t rotate on startup,
- -identifier    log process identifier to be used by administrator/scripts to locate split logger running in background,
+ 
+ -identifier    log process identifier to be used by administrator/scripts to locate log director running in background,
  -flush         do not buffer output. flush each line. Default is to use buffering,
+ 
  -verbose       debug mode,
-
  -help          this help,
  -man           shows longer manual.
 
@@ -49,7 +58,7 @@
 
 <h1 id="DESCRIPTION">DESCRIPTION</h1>
 
-<p>Forwards stdin data stream to a log file and maintain rotation rules. Rotated files get date/time signature at the end of the file name, but before extension. In case of name conflict (too fast log generation), date/time is extended by unique sequence. Uses internal rotation rules and writes data synchronously just after data reception. Does not require external tool as logrotate, and does not react on HUP signal.</p>
+<p>Forwards stdin data stream to a log file and maintain log naming and rotation rules. Rotated files get date/time signature at the end or at begining of the file name, and may be written to daily directory. In case of name conflict (too fast log generation), date/time is extended by unique sequence. Supports flexible rotation rules. Rewrties file headers on request, what is useful for CVS files rotation.</p>
 
 <h1 id="EXAMPLES">EXAMPLES</h1>
 
@@ -58,8 +67,7 @@
 <dt id="Rotate-by-bytes"><b>Rotate by bytes</b></dt>
 <dd>
 
-<pre><code> seq 1 100 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -l 30
-
+<pre><code> seq 1 100  | perl logdirector.pl -n rotate-seq -l 30
  ls -lh rotate-s*
  -rw-r--r--  1 user  staff    30B Jan 21 16:52 rotate-seq-2015-01-21-165222-1.log
  -rw-r--r--  1 user  staff    30B Jan 21 16:52 rotate-seq-2015-01-21-165222-2.log
@@ -76,30 +84,15 @@
 <dt id="Rotate-by-lines"><b>Rotate by lines</b></dt>
 <dd>
 
-<pre><code> seq 1 100 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10
-
- wc -l rotate-seq*
-      10 rotate-seq-2015-01-21-170025-1.log
-      10 rotate-seq-2015-01-21-170025-2.log
-      10 rotate-seq-2015-01-21-170025-3.log
-      10 rotate-seq-2015-01-21-170025-4.log
-      10 rotate-seq-2015-01-21-170025-5.log
-      10 rotate-seq-2015-01-21-170025-6.log
-      10 rotate-seq-2015-01-21-170025-7.log
-      10 rotate-seq-2015-01-21-170025-8.log
-      10 rotate-seq-2015-01-21-170025-9.log
-      10 rotate-seq-2015-01-21-170025.log
-       0 rotate-seq.log
-     100 total</code></pre>
+<p>seq 1 100 | perl logdirector.pl -n rotate-seq -rotateBySize lines -l 10 wc -l rotate-seq* 10 rotate-seq-2015-01-21-170025-1.log 10 rotate-seq-2015-01-21-170025-2.log 10 rotate-seq-2015-01-21-170025-3.log 10 rotate-seq-2015-01-21-170025-4.log 10 rotate-seq-2015-01-21-170025-5.log 10 rotate-seq-2015-01-21-170025-6.log 10 rotate-seq-2015-01-21-170025-7.log 10 rotate-seq-2015-01-21-170025-8.log 10 rotate-seq-2015-01-21-170025-9.log 10 rotate-seq-2015-01-21-170025.log 0 rotate-seq.log 100 total</p>
 
 </dd>
 <dt id="Rotate-by-process-run-time"><b>Rotate by process run time</b></dt>
 <dd>
 
-<pre><code> # waiting for proper time x1s
+<pre><code> # waiting for proper time x 1s
  while [ $(date +%S | cut -b2) -ne 1 ]; do sleep 1; echo -n .; done; echo
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit 5 -flush
  ls -lhTU *.log
  -rw-r--r--  1 user  staff   123B Feb 17 16:34:11 2015 rotate-seq-2015-02-17-163416.log &lt;- lapsed 5 seconds 
  -rw-r--r--  1 user  staff   147B Feb 17 16:34:16 2015 rotate-seq-2015-02-17-163421.log &lt;- lapsed 5 seconds
@@ -109,8 +102,7 @@
 <dt id="Rotate-by-clock-time"><b>Rotate by clock time</b></dt>
 <dd>
 
-<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
-
+<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime clock -timeLimit 5 
  wc -l rotate-seq*
       32 rotate-seq-2015-02-17-161715.log        &lt;- wall clock passed 5 seconds window
       48 rotate-seq-2015-02-17-161720.log        &lt;- wall clock passed 5 seconds window
@@ -121,24 +113,54 @@
 <dt id="Rotate-by-lines-and-process-run-time"><b>Rotate by lines and process run time</b></dt>
 <dd>
 
-<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
-
+<pre><code> for cnt in $(seq 1 100); do echo $cnt; sleep 0.1; done  | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit 5 -rotateBy lines -limit 40
  wc -l *.log
       40 rotate-seq-2015-02-17-160626.log       &lt;- 40 lines limit
        1 rotate-seq-2015-02-17-160627.log       &lt;- lapsed 5 seconds
       40 rotate-seq-2015-02-17-160631.log       &lt;- 40 lines limit
        8 rotate-seq-2015-02-17-160632.log       &lt;- lapsed 5 seconds
       11 rotate-seq.log
-     100 total</code></pre>
+     100 total
+     </code></pre>
+
+</dd>
+<dt id="Rotate-by-clock-time-save-files-to-directory-keeping-timestamp-prefix-add-header-to-each-file"><b>Rotate by clock time, save files to directory keeping timestamp prefix, add header to each file.</b></dt>
+<dd>
+
+<pre><code>  for cnt in $(seq 1 100); do echo $cnt; sleep 1; done \
+  | perl logdirector.pl -n rotate-seq -rotateByTime clock -timeLimit 15 -addDateSubDir -alwaysRotate -prefixDate -header Counter
+  
+  ls -l
+  total 96
+  drwxr-xr-x  9 rstyczynski  staff    306 Nov  8 11:42 2017-11-08   &lt;- created directory with logs
+
+  ls -l $(date +%Y-%m-%d)/
+  total 56
+  -rw-r--r--  1 rstyczynski  staff  35 Nov  8 11:41 2017-11-08-114049_rotate-seq.log  &lt;- log files are perfixed with timestamp
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114100_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114115_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:41 2017-11-08-114130_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:42 2017-11-08-114145_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  53 Nov  8 11:42 2017-11-08-114200_rotate-seq.log
+  -rw-r--r--  1 rstyczynski  staff  48 Nov  8 11:42 2017-11-08-114215_rotate-seq.log
+  
+  head -3 $(date +%Y-%m-%d)/$(ls $(date +%Y-%m-%d) | head -1)
+  Counter   &lt;- added header
+  1
+  2
+  
+  head -3 $(date +%Y-%m-%d)/$(ls $(date +%Y-%m-%d) | head -2 | tail -1)
+  Counter   &lt;- added header
+  13
+  14</code></pre>
 
 </dd>
 <dt id="Rotate-file-explicitly-written-by-a-program"><b>Rotate file explicitly written by a program</b></dt>
 <dd>
 
 <pre><code> mkfifo /tmp/logpipe
- tail -c +1 -f /tmp/logpipe | perl logsplitter.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &amp;
- seq 1 100 2&gt;&amp;1 &gt;/tmp/logpipe
-
+ tail -c +1 -f /tmp/logpipe | perl logdirector.pl -n rotate-seq -rotateBySize lines -l 10 -i test001-rotate-seq &amp;
+ seq 1 100  &gt;/tmp/logpipe
  wc -l rotate-seq*
       10 rotate-seq-2015-01-22-110927-1.log
       10 rotate-seq-2015-01-22-110927-2.log
@@ -154,12 +176,11 @@
      100 total</code></pre>
 
 </dd>
-<dt id="Identify-PID-of-background-logsplitter-process"><b>Identify PID of background logsplitter process</b></dt>
+<dt id="Identify-PID-of-background-logdirector-process"><b>Identify PID of background logdirector process</b></dt>
 <dd>
 
 <pre><code> ps -f | grep &quot;test001-rotate-seq&quot; | grep -v grep
- 501  8553   534   0 11:32AM ttys002    0:00.07 perl logsplitter.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq
-
+ 501  8553   534   0 11:32AM ttys002    0:00.07 perl logdirector.pl -n rotate-seq -r lines -l 10 -i test001-rotate-seq
  Note that above example is from OSX. Parameters of ps command and its output varies on different operating systems.</code></pre>
 
 </dd>
@@ -174,10 +195,10 @@
  cnt=0
  while [ $cnt -lt 5 ]; do
  sleep 5
- logsplitterPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d&quot; &quot;)
- echo $logsplitterPID
- if [ &quot;$logsplitterPID&quot; != &quot;&quot; ]; then
-    kill -HUP $logsplitterPID
+ logdirectorPID=$(ps | grep rotate-HUP-test | grep -v grep | cut -f1 -d&quot; &quot;)
+ echo $logdirectorPID
+ if [ &quot;$logdirectorPID&quot; != &quot;&quot; ]; then
+    kill -HUP $logdirectorPID
     if [ $? -eq 1 ]; then
       cnt=5
     fi
@@ -187,10 +208,7 @@
  
  exit
  &#39; &amp;
-
- for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done 2&gt;&amp;1 | perl logsplitter.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
-
-
+ for cnt in $(seq 1 100); do echo $cnt; sleep 0.2; done | perl logdirector.pl -n rotate-seq -rotateByTime run -timeLimit  5000 -flush -identifier rotate-HUP-test
  wc -l rotate-seq*
       25 rotate-seq-2015-02-25-152946.log
       25 rotate-seq-2015-02-25-152951.log
@@ -204,13 +222,13 @@
 
 <h1 id="PERFORMANCE">PERFORMANCE</h1>
 
-<p>log splitter was verified to work on three levels of speed: (1) unbuffered write, read from stdin: 100MB/s, (2) buffered write (-f option), read from stdin: 30MB/s, (3) unbuffered write, read from fifo pipe: 10MB/s. Each level of measured speed seems enough for logging purposes.</p>
+<p>log director was verified to work on three levels of speed: (1) unbuffered write, read from stdin: 100MB/s, (2) buffered write (-f option), read from stdin: 30MB/s, (3) unbuffered write, read from fifo pipe: 10MB/s. Each level of measured speed seems enough for logging purposes.</p>
 
 <h1 id="AUTHOR">AUTHOR</h1>
 
 <p>Ryszard Styczynski &lt;ryszard.styczynski@oracle.com&gt; &lt;http://snailsinnoblesoftware.blogspot.com&gt;</p>
 
-<p>February 2015, version 0.2.1</p>
+<p>February 2015 - November 2017, version 0.3</p>
 
 
 </body>
