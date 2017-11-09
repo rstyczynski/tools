@@ -10,3 +10,5 @@ logsplitter/perklfork.pl
 logsplitter/perlcron.pl
 
 logsplitter/rotateHUP.pl
+
+umc/bin/.Rhistory
