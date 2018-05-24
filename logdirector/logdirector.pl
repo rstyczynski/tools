@@ -503,7 +503,7 @@ logdirector.pl - stdout log director and rotation script.
  -startup 	rotate on startup. By default doesn't rotate on startup,
 
  -timeRotationInThread 
-                enable time rotation in thread. Useful when time rotation needs to happen on specific time intervals,
+                enable time rotation in thread. Useful when time rotation needs to be independent of data coming from stdin,
  -rotateOnThreadEnd 
                 when rotating in thread, then this flag will rotate the file on the thread end, 
  
@@ -672,12 +672,17 @@ seq 1 100  | perl logdirector.pl -n rotate-seq -rotateBySize lines -l 10
        1 rotate-seq.log
      100 total
 
+=item B<Detect header duplicates>
+
+When the log director starts writing data to an existing non-empty CSV log file, there could be a header present on the first line of the log. 
+With option detectHeaderDups it is possible to check that the first line header is not repeated in subsequent writes in the log file. 
+
 =item B<Time based rotation a thread>
 
-If you need the files to be rotated on time without dependancy on incoming data on stdin, you can use an option to rotate 
+If you need to run the time rotation while you need to be independent of incoming data from stdin, you can use an option to rotate 
 files in an internal rotation thread. This is useful when you need to generate log files in batches that could be taken up by another script
-in an asynchronous manner, for example, when you want to decouple log data collection and a script pushing data to a remote endpoint. In such a case,
-the script pushing data to the remote endpoint won't block collection process.
+in an asynchronous manner, for example, when you want to decouple log data collection and a script pushing data to a remote endpoint. 
+In such a case, the script pushing data to the remote endpoint won't block collection process.
 
 The below is the example:
 

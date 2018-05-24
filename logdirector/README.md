@@ -23,7 +23,7 @@
      -startup       rotate on startup. By default doesn't rotate on startup,
  
      -timeRotationInThread 
-                    enable time rotation in thread. Useful when time rotation needs to happen on specific time intervals,
+                    enable time rotation in thread. Useful when time rotation needs to be independent of data coming from stdin,
      -rotateOnThreadEnd 
                     when rotating in thread, then this flag will rotate the file on the thread end, 
  
@@ -189,14 +189,16 @@ With option detectHeaderDups it is possible to check that the first line header 
 
 ## Time based rotation in a thread
 
-If you need the files to be rotated on time without dependancy on incoming data on stdin, you can use an option to rotate 
+If you need to run the time rotation while you need to be independent of incoming data from stdin, you can use an option to rotate 
 files in an internal rotation thread. This is useful when you need to generate log files in batches that could be taken up by another script
-in an asynchronous manner, for example, when you want to decouple log data collection and a script pushing data to a remote endpoint. In such a case,
-the script pushing data to the remote endpoint won't block collection process.
+in an asynchronous manner, for example, when you want to decouple log data collection and a script pushing data to a remote endpoint. 
+In such a case, the script pushing data to the remote endpoint won't block collection process.
 
 The below is the example:
 
+```
 umc free collect 30 4 | perl logdirector.pl -name free -rotateByTime run -timeLimit 10 -flush -timeRotationInThread -rotateOnThreadEnd
+```
 
 This will rotate the file every 10 seconds but only when there is data in the file. The parameter rotateOnThreadEnd will rotate the file 
 when the rotation thread ends, i.e. when the log director ends. 
