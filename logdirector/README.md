@@ -13,12 +13,19 @@
  
      -header        add this header on top of each file. Useful for CSV files with hreader,
      -detectHeader  auto detect header from first line of log stream after start. Useful for CSV files with hreader,
+     -checkHeaderDups 
+                    checks for header duplicates. Useful when writing to non-empty CSV files with header,
  
      -rotateBySize  rotation done by line or byte count. Default is bytes,
      -limit         number of lines or bytes in single log file. Default values are 100 k lines and 50 mega bytes. Value provided as integer,
      -rotateByTime  rotation done by clock of process run time. Default is clock,
      -timeLimit     time limit in seconds. Default is 86400 (1 day),
      -startup       rotate on startup. By default doesn't rotate on startup,
+ 
+     -timeRotationInThread 
+                    enable time rotation in thread. Useful when time rotation needs to happen on specific time intervals,
+     -rotateOnThreadEnd 
+                    when rotating in thread, then this flag will rotate the file on the thread end, 
  
      -identifier    log process identifier to be used by administrator/scripts to locate log director running in background,
      -flush         do not buffer output. flush each line. Default is to use buffering,
@@ -175,6 +182,25 @@
             1 rotate-seq.log
           100 total
 
+## Detect header duplicates
+
+When the log director starts writing data to an existing non-empty CSV log file, there could be a header present on the first line of the log. 
+With option detectHeaderDups it is possible to check that the first line header is not repeated in subsequent writes in the log file. 
+
+## Time based rotation in a thread
+
+If you need the files to be rotated on time without dependancy on incoming data on stdin, you can use an option to rotate 
+files in an internal rotation thread. This is useful when you need to generate log files in batches that could be taken up by another script
+in an asynchronous manner, for example, when you want to decouple log data collection and a script pushing data to a remote endpoint. In such a case,
+the script pushing data to the remote endpoint won't block collection process.
+
+The below is the example:
+
+umc free collect 30 4 | perl logdirector.pl -name free -rotateByTime run -timeLimit 10 -flush -timeRotationInThread -rotateOnThreadEnd
+
+This will rotate the file every 10 seconds but only when there is data in the file. The parameter rotateOnThreadEnd will rotate the file 
+when the rotation thread ends, i.e. when the log director ends. 
+
 # PERFORMANCE
     log director was verified to work on three levels of speed: (1)
     unbuffered write, read from stdin: 100MB/s, (2) buffered write (-f
@@ -187,4 +213,9 @@
     <http://snailsinnoblesoftware.blogspot.com>
 
     February 2015 - November 2017, version 0.3
+
+# CONTRIBUTORS
+
+    Tomas Vitvar <tomas@vitvar.com> <http://vitvar.com>
+      05-2018: Time based rotation in thread
 
