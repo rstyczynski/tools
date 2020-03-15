@@ -14,6 +14,13 @@ By default scripts will save data in current dir. Yu may specify own directory t
 mftlog=~/mft/logs
 ```
 
+Register function in current shell session.
+
+```
+. status.sh
+```
+
+
 # Fetch status from MFT server
 
 This function gets data over HTTP from MFT instance. This call is required for other functions to work with latest data.
