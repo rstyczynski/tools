@@ -71,19 +71,56 @@ $UMCRoot/tools/systat/9.0.4.................. directory with systat package in v
 
 Once located proper version of the wrapper, checks if source tool is available in a system. In case of problems stops with error. In case of success UMC returns data to standard output.
 
-# First time use
+# Configuration
 To configure UMC one have to edit etc/umc.cfg to provide required information about middleware. 
 
-# Regular use
+```
+#---------------------------------------------------------------------------------------
+#--- platform location & specific configuration
+#---------------------------------------------------------------------------------------
+
+#TODO configure below variables to used Oracle SOA data collectors
+export FMW_HOME=/oracle/fmwhome
+export SOA_HOME=$FMW_HOME/Oracle_SOA1
+export OSB_HOME=$FMW_HOME/Oracle_OSB1
+export WLS_HOME=$FMW_HOME/wlserver_10.3/server
+export DOMAIN_HOME=$FMW_HOME/user_projects/domains/dev_soasuite
+
+#---------------------------------------------------------------------------------------
+#--- reporting
+#---------------------------------------------------------------------------------------
+
+export CSVdelimiter=,
+```
+
+When not configured UMC will be still ready to run Linux tools.
+
+# Installation
+To install UMC, clone it from github.
+
+```bash
+git clone https://github.com/rstyczynski/tools
+Cloning into 'tools'...
+remote: Counting objects: 501, done.
+remote: Compressing objects: 100% (78/78), done.
+remote: Total 501 (delta 46), reused 137 (delta 36), pack-reused 344
+Receiving objects: 100% (501/501), 301.92 KiB | 482.00 KiB/s, done.
+Resolving deltas: 100% (162/162), done.
+```
+
+It will download little more, but you may ignore directories other ... 
+
+
+# First time use
 Before use one have to source umc.h which adds command line functions to Bash environment. Apart of internal things, UMC extends classpath by SOA and OSB jars, and calls Oracle Miffleware environment confguration script.
 
 ```bash
-. ttMetrics/bin/umc.h 
+. ~/umc/bin/umc.h 
 
 Universal Metrics Collector initialized.
 ```
 
-After initialization Bash is extended by `umc` command.
+After initialization Bash is extended by `umc` command. You are ready to use UMC.
 
 ```bash
 Universal Metrics Collector. Collects system monitoring data and presents in CSV format.
