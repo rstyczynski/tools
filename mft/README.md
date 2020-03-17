@@ -1,23 +1,26 @@
 
 # Configure
 
-To prepare functions for work set server, username, and passowrd in the environemnt.
+To prepare functions for work set server, username, and password in cfg file. By default scripts will save data in current dir. You may specify own directory to store data files.
 
 ```
+mkdir -p ~/.mft
+mkdir ~/mft/logs
+
+cat >~/.mft/mft.cfg <<EOF
 mftserver=http://mft.acme.com
-mftauth=mftuser:welcome1
-```
-
-By default scripts will save data in current dir. Yu may specify own directory to store data files.
-
-```
 mftlog=~/mft/logs
+EOF
+
+cat >~/.mft/mftauth.cfg <<EOF
+mftuser:welcome1
+EOF
 ```
 
 Register function in current shell session.
 
 ```
-. status.sh
+source status.sh
 ```
 
 
@@ -106,4 +109,58 @@ getMFTCurrentStatus $eventId
   "status": "DONE"
 }
 ```
+
+# MFT status HTTP wrapper
+
+It's possible to interact with scripts over HTTP protocol. Service wrapper offers:
+
+- status check
+- trace start
+- trace download
+
+To run http sever:
+
+```
+bin/mft-status-proxy.sh
+```
+
+By default service listens on port 6502, use wrapper_port cfg parameter to set different port.
+
+
+## get status
+
+```
+curl "http://localhost:6502/status?eventId=FE6B5255-8572-4B56-93BE-CEA581F4DCD8"
+{
+    "activeInstanceCount": "0",
+    "completedInstanceCount": "283",
+    "failedInstanceCount": "0",
+    "status": "DONE",
+    "effective_status": "DONE"
+}
+```
+
+## start trace
+
+To initiate trace invoke trace function with required event id.
+
+```
+curl -s "http://localhost:6502/trace?eventId=FE6B5255-8572-4B56-93BE-CEA581F4DCD8"
+```
+
+Note that only one collection for event id may be performed at a time. YOu will be notified by error that there is ongoing data collection. Collector will work until transfer reaches DONE or FAILED state.
+
+
+## get trace result
+
+Once trace is finished trace returns collected data.
+
+```
+curl -s "http://localhost:6502/trace?eventId=FE6B5255-8572-4B56-93BE-CEA581F4DCD8" | head -2
+2020-03-16,20:02:10,+0100,1584385330,FE6B5255-8572-4B56-93BE-CEA581F4DCD8,0,1,0,IN_PROGRESS,inv_position_MENA_nf_ARE_COL_416_0000638_2020_03_16.csv,COMPLETED,SUCCESSFUL,32234,COMPLETED,SUCCESSFUL,32234
+2020-03-16,20:02:12,+0100,1584385332,FE6B5255-8572-4B56-93BE-CEA581F4DCD8,0,1,0,IN_PROGRESS,inv_position_MENA_nf_ARE_COL_416_0000638_2020_03_16.csv,COMPLETED,SUCCESSFUL,32234,COMPLETED,SUCCESSFUL,32234
+```
+
+
+
 

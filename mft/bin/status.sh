@@ -4,12 +4,12 @@ function fetchMFTEventStatus() {
     event_session_id=$1
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
-    if [ -z "$mftauth" ]; then
-        echo "Error. Provide MFT credentials in mftauth variable in format user:pass."
+    if [ ! -f ~/.mft/mftauth.cfg ]; then
+        echo "Error. Provide MFT credentials in ~/.mft/mftauth.cfg file in format user:pass."
         return 1
     fi
 
@@ -20,17 +20,13 @@ function fetchMFTEventStatus() {
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
+    fi
 
     mkdir -p $mftlog/$event_session_id
 
     timestamp=$(date +%Y%m%dT%H%M%S)
 
-    curl -s -X GET -u $mftauth -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id > $mftlog/$event_session_id/$timestamp-raw.json
+    curl -s -X GET -u $(cat ~/.mft/mftauth.cfg) -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id >$mftlog/$event_session_id/$timestamp-raw.json
     if [ $? -ne 0 ]; then
         echo "Error. Not able to connect to MFT instnace."
         return 2
@@ -41,10 +37,10 @@ function fetchMFTEventStatus() {
     grep MFT_WS_EVENT_SERVICE_NO_EVENT_FOUND $mftlog/$event_session_id/$timestamp-event.json >/dev/null
     if [ $? -ne 0 ]; then
 
-        curl -s -X GET -u $mftauth -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id/instances |
+        curl -s -X GET -u $(cat ~/.mft/mftauth.cfg) -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id/instances |
             jq >$mftlog/$event_session_id/$timestamp-instances.json
 
-        curl -s -X GET -u $mftauth -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id/instances?inDetail=true |
+        curl -s -X GET -u $(cat ~/.mft/mftauth.cfg) -H "Content-Type: application/json" $mftserver/mftapp/rest/v1/events/$event_session_id/instances?inDetail=true |
             jq >$mftlog/$event_session_id/$timestamp-details.json
     else
         echo "Error. Event not found."
@@ -56,18 +52,13 @@ function getMFTCurrentStatus() {
     event_session_id=$1
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
-
+    fi
 
     current=$(ls -tr $mftlog/$event_session_id/*event* | tail -1)
     #echo
@@ -79,18 +70,13 @@ function getMFTActiveStatus() {
     event_session_id=$1
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
-
+    fi
 
     current=$(ls -tr $mftlog/$event_session_id/*details* | tail -1)
     #echo
@@ -102,18 +88,13 @@ function getEventStatus() {
     event_session_id=$1
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
-
+    fi
 
     unset activeInstanceCount
     unset completedInstanceCount
@@ -133,7 +114,8 @@ function getEventStatus() {
     \"activeInstanceCount\": \"$activeInstanceCount\",
     \"completedInstanceCount\": \"$completedInstanceCount\",
     \"failedInstanceCount\": \"$failedInstanceCount\",
-    \"status\": \"DOWNLOADED\"
+    \"status\": \"$status\",
+    \"effective_status\": \"ALL_IN_PROGRESS\"
 }"
         else
 
@@ -142,14 +124,16 @@ function getEventStatus() {
     \"activeInstanceCount\": \"$activeInstanceCount\",
     \"completedInstanceCount\": \"$completedInstanceCount\",
     \"failedInstanceCount\": \"$failedInstanceCount\",
-    \"status\": \"FAILED\"
+    \"status\": \"$status\",
+    \"effective_status\": \"FAILED\"
 }"
             else
                 echo "{
     \"activeInstanceCount\": \"$activeInstanceCount\",
     \"completedInstanceCount\": \"$completedInstanceCount\",
     \"failedInstanceCount\": \"$failedInstanceCount\",
-    \"status\": \"DONE\"
+    \"status\": \"$status\",
+    \"effective_status\": \"DONE\"
 }"
             fi
         fi
@@ -158,7 +142,8 @@ function getEventStatus() {
     \"activeInstanceCount\": \"$activeInstanceCount\",
     \"completedInstanceCount\": \"$completedInstanceCount\",
     \"failedInstanceCount\": \"$failedInstanceCount\",
-    \"status\": \"$status\"
+    \"status\": \"$status\",
+    \"effective_status\": \"$status\"
 }"
 
     fi
@@ -169,28 +154,23 @@ function getMFTStatusCSV() {
     event_session_id=$1
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
-    if [ ! -f $umcRoot/bin/addTimestamp.pl ]; then
-        echo "Error. Provide UMC root in umcRoot."
+    if [ ! -f $toolsBin/addTimestamp.pl ]; then
+        echo "Error. Provide UMC bin in toolsBin."
+        return 1
     fi
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
-
+    fi
 
     short_stat=$(getEventStatus $event_session_id | jq | grep ':' | tr -d '"' | tr -d ' ' | cut -f2 -d: | tr -d '\n')
 
     current=$(ls -tr $mftlog/$event_session_id/*details* | tail -1)
-    echo
-    echo $current
+
     cat $current |
         jq -r '.instances[] | [.fileName, .status.status, .status.subStatus, .details.bytesReceived, .details.targets[0].status, .details.targets[0].deliveryStatus, .details.targets[0].bytesTransferred] | @tsv' |
         column -t |
@@ -198,26 +178,25 @@ function getMFTStatusCSV() {
         tr ' ' ',' |
         sed "s/^/$short_stat,/g" |
         sed "s/^/$event_session_id,/g" |
-        perl $umcRoot/bin/addTimestamp.pl |
-        tee -a $mftlog/$event_session_id/status.log
+        perl $toolsBin/addTimestamp.pl >> $mftlog/$event_session_id/status.log
 }
 
 function activeMFTStatus() {
     event_session_id=$1
+    if [ -z "$2" ]; then
+        verbose=NO
+    else
+        verbose=YES
+    fi
 
     if [ -z "$event_session_id" ]; then
-        echo "Error. Provide event id as firt parameter."
+        echo "Error. Provide event id as first parameter."
         return 1
     fi
 
     if [ -z "$mftlog" ]; then
         mftlog=.
-    fi 
-
-    if [ -z "$umcRoot" ]; then
-        umcRoot=.
-    fi 
-
+    fi
 
     go=1
     while [ $go -eq 1 ]; do
@@ -226,12 +205,15 @@ function activeMFTStatus() {
             go=0
         else
 
-            getMFTCurrentStatus $event_session_id
-            getEventStatus $event_session_id
-            getMFTActiveStatus $event_session_id
+            if [ $verbose == YES ]; then
+                getMFTCurrentStatus $event_session_id
+                getEventStatus $event_session_id
+                getMFTActiveStatus $event_session_id
+            fi
+
             getMFTStatusCSV $event_session_id
 
-            getEventStatus $event_session_id | egrep "DONE|FAILED"
+            getEventStatus $event_session_id | jq -r .effective_status | egrep "DONE|FAILED" >/dev/null
             go=$?
             if [ $go -eq 1 ]; then
                 sleep 1
